@@ -224,7 +224,7 @@
     <div class="avatar">🌸</div>
     <div class="head-info">
       <h1>Aomi AI</h1>
-      <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Online · GPT-3.5</span></div>
+      <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Online · Llama 3.3 (Groq)</span></div>
     </div>
     <div class="head-actions">
       <button class="icon-btn" id="resetBtn" title="Reset sesi">↺</button>
@@ -360,7 +360,7 @@
     const pill = document.createElement('div');
     pill.className = 'session-pill';
     const count = session.messages.filter(v => v.role === 'user').length;
-    pill.textContent = `💬 Pesan ke-${count}/${MAX_MESSAGES_PER_SESSION} · Model: GPT-3.5`;
+    pill.textContent = `💬 Pesan ke-${count}/${MAX_MESSAGES_PER_SESSION} · Model: Llama 3.3 (Groq)`;
     chatEl.appendChild(pill);
     scrollBottom();
   }
@@ -397,7 +397,7 @@
     sendBtn.disabled = v;
     input.disabled = v;
     statusDot.className = 'dot' + (v ? ' busy' : '');
-    statusText.textContent = v ? 'Aomi sedang berpikir...' : 'Online · GPT-3.5';
+    statusText.textContent = v ? 'Aomi sedang berpikir...' : 'Online · Llama 3.3 (Groq)';
   }
 
   // ====== API ======
