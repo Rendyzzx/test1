@@ -224,7 +224,7 @@
     <div class="avatar">🌸</div>
     <div class="head-info">
       <h1>Aomi AI</h1>
-      <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Online · Llama 3.3 (Groq)</span></div>
+      <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Online · Gemini</span></div>
     </div>
     <div class="head-actions">
       <button class="icon-btn" id="resetBtn" title="Reset sesi">↺</button>
@@ -256,8 +256,7 @@
   };
 
   // Request dikirim ke proxy /api/chat milikmu sendiri di Vercel.
-  // Semua header "rahasia" (user-agent, origin, referer, dll) di-set
-  // oleh serverless function api/chat.js, bebas dari CORS.
+  // Scraping Gemini + fallback berjalan di api/chat.js, bebas CORS.
   function buildHeaders(browserId) {
     return {
       'content-type': 'application/json',
@@ -279,6 +278,7 @@
       browserId: randomId(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      geminiSessionId: null,
       messages: []
     };
   }
@@ -360,7 +360,7 @@
     const pill = document.createElement('div');
     pill.className = 'session-pill';
     const count = session.messages.filter(v => v.role === 'user').length;
-    pill.textContent = `💬 Pesan ke-${count}/${MAX_MESSAGES_PER_SESSION} · Model: Llama 3.3 (Groq)`;
+    pill.textContent = `💬 Pesan ke-${count}/${MAX_MESSAGES_PER_SESSION} · Model: Gemini`;
     chatEl.appendChild(pill);
     scrollBottom();
   }
@@ -397,7 +397,7 @@
     sendBtn.disabled = v;
     input.disabled = v;
     statusDot.className = 'dot' + (v ? ' busy' : '');
-    statusText.textContent = v ? 'Aomi sedang berpikir...' : 'Online · Llama 3.3 (Groq)';
+    statusText.textContent = v ? 'Aomi sedang berpikir...' : 'Online · Gemini';
   }
 
   // ====== API ======
@@ -415,6 +415,9 @@
       enableConversationPrompt: false
     };
 
+    // sessionId Gemini dari sesi sebelumnya (lanjut konteks percakapan)
+    body.sessionId = session.geminiSessionId || null;
+
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
 
@@ -426,13 +429,20 @@
         signal: ctrl.signal
       });
 
-      const text = await res.text();
+      const raw = await res.text();
+      let data = null;
+      try { data = JSON.parse(raw); } catch { data = null; }
 
-      if (res.status >= 200 && res.status < 300) {
+      if (res.status >= 200 && res.status < 300 && data && data.text) {
+        const replyText = data.text;
+        // simpan sessionId Gemini biar konteks nyambung
+        if (data.sessionId) session.geminiSessionId = data.sessionId;
+
         session.messages.push({ role: 'user', content: userText });
-        session.messages.push({ role: 'assistant', content: text });
+        session.messages.push({ role: 'assistant', content: replyText });
         saveSession(session);
-        addMsg('bot', text);
+        addMsg('bot', replyText);
+        if (data.provider) addNotice(`🤖 Provider: ${data.provider}`);
         addSessionPill();
 
         // kalau session penuh, buat baru utk pesan berikutnya
@@ -442,7 +452,8 @@
           addNotice('Sesi penuh, sesi baru otomatis dimulai 🔄');
         }
       } else {
-        addMsg('bot', `Gagal! Status: ${res.status}\n${text.slice(0, 200)}\n\nCoba lagi nanti ya~`, true);
+        const errMsg = data?.error || raw.slice(0, 200);
+        addMsg('bot', `Gagal! Status: ${res.status}\n${errMsg}\n\nCoba lagi nanti ya~`, true);
       }
     } catch (err) {
       const msg = err.name === 'AbortError'
