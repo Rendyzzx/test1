@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aomi AI — Chat Santai</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-soft: #12121a;
+    --surface: #171722;
+    --surface-2: #1e1e2b;
+    --border: #2a2a3a;
+    --text: #e8e8f0;
+    --text-dim: #8b8b9e;
+    --accent: #7c5cff;
+    --accent-soft: rgba(124, 92, 255, 0.15);
+    --user-bubble: #7c5cff;
+    --bot-bubble: #1c1c29;
+    --danger: #ff5c7c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+  }
+  .app {
+    width: 100%;
+    max-width: 720px;
+    height: 100vh;
+    max-height: 860px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c5cff, #4a2fd6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(124, 92, 255, 0.5);
+  }
+  .head-info { flex: 1; min-width: 0; }
+  .head-info h1 { font-size: 16px; font-weight: 600; }
+  .head-info .status {
+    font-size: 12px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 6px; margin-top: 2px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #3ddc84;
+    box-shadow: 0 0 8px #3ddc84;
+  }
+  .dot.busy { background: #ffb020; box-shadow: 0 0 8px #ffb020; }
+  .head-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all .2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* ===== CHAT AREA ===== */
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+  }
+  #chat::-webkit-scrollbar { width: 6px; }
+  #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .msg {
+    display: flex;
+    gap: 10px;
+    max-width: 85%;
+    animation: fadeIn .25s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.bot { align-self: flex-start; }
+
+  .msg .m-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    margin-top: 2px;
+  }
+  .msg.bot .m-avatar { background: linear-gradient(135deg, #7c5cff, #4a2fd6); }
+  .msg.user .m-avatar { background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.bot .bubble { background: var(--bot-bubble); border: 1px solid var(--border); border-top-left-radius: 4px; }
+  .msg.user .bubble { background: var(--user-bubble); border-top-right-radius: 4px; }
+  .bubble.error { border-color: var(--danger); color: #ffb3c2; }
+
+  /* typing indicator */
+  .typing { display: flex; gap: 5px; padding: 4px 2px; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-dim);
+    animation: blink 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+  /* session counter */
+  .session-pill {
+    align-self: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+
+  /* ===== INPUT ===== */
+  form {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  #input {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-size: 14.5px;
+    outline: none;
+    transition: border-color .2s;
+    resize: none;
+    max-height: 120px;
+    font-family: inherit;
+  }
+  #input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  #input::placeholder { color: var(--text-dim); }
+  #send {
+    background: linear-gradient(135deg, #7c5cff, #5a3ce0);
+    border: none;
+    color: #fff;
+    width: 48px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  #send:hover { filter: brightness(1.15); }
+  #send:disabled { opacity: .4; cursor: not-allowed; }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    margin: auto;
+    padding: 20px;
+  }
+  .empty .big { font-size: 44px; margin-bottom: 12px; }
+  .empty h2 { color: var(--text); font-size: 17px; margin-bottom: 6px; }
+  .empty .chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="avatar">🌸</div>
+    <div class="head-info">
+      <h1>Aomi AI</h1>
+      <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Online · GPT-3.5</span></div>
+    </div>
+    <div class="head-actions">
+      <button class="icon-btn" id="resetBtn" title="Reset sesi">↺</button>
+    </div>
+  </header>
+
+  <div id="chat"></div>
+
+  <form id="form">
+    <textarea id="input" rows="1" placeholder="Ketik pesanmu di sini..." autocomplete="off"></textarea>
+    <button id="send" type="submit">➤</button>
+  </form>
+</div>
+
+<script>
+  // ====== CONFIG (dari plugin aisantai) ======
+  const API_URL = '/api/chat'; // proxy serverless Vercel (bebas CORS)
+  const SYSTEM_PROMPT = 'Kamu adalah aomi santai berbahasa Indonesia. Jawab singkat, jelas, dan ramah.';
+  const MAX_MESSAGES_PER_SESSION = 10;
+  const TIMEOUT = 60000;
+
+  const MODEL = {
+    id: 'gpt-3.5-turbo',
+    name: 'GPT-3.5',
+    maxLength: 12000,
+    tokenLimit: 4000,
+    completionTokenLimit: 2500,
+    deploymentName: 'gpt-35'
+  };
+
+  // Request dikirim ke proxy /api/chat milikmu sendiri di Vercel.
+  // Semua header "rahasia" (user-agent, origin, referer, dll) di-set
+  // oleh serverless function api/chat.js, bebas dari CORS.
+  function buildHeaders(browserId) {
+    return {
+      'content-type': 'application/json',
+      'x-browser-id': browserId
+    };
+  }
+
+  // ====== SESSION (localStorage, mirip file JSON di plugin) ======
+  const STORAGE_KEY = 'aomi-session-v1';
+
+  function randomId() {
+    return (crypto.randomUUID && crypto.randomUUID()) ||
+      'xxxxxxx-xxxx-4xxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
+  }
+
+  function createSession() {
+    return {
+      sessionId: randomId(),
+      browserId: randomId(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: []
+    };
+  }
+
+  function getSession() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (data && Array.isArray(data.messages) && data.browserId) {
+        const userCount = data.messages.filter(v => v.role === 'user').length;
+        if (userCount >= MAX_MESSAGES_PER_SESSION) {
+          const fresh = createSession();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+          return fresh;
+        }
+        return data;
+      }
+    } catch (e) {}
+    const fresh = createSession();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    return fresh;
+  }
+
+  function saveSession(session) {
+    session.updatedAt = Date.now();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  }
+
+  function resetSession() {
+    localStorage.removeItem(STORAGE_KEY);
+    chatEl.innerHTML = '';
+    addSessionPill();
+    renderEmpty();
+    session = getSession();
+    addNotice('Sesi baru dimulai 🌸');
+  }
+
+  // ====== UI ======
+  const chatEl = document.getElementById('chat');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+
+  let session = getSession();
+  let busy = false;
+
+  function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+
+  function addMsg(role, text, isError) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+    const av = document.createElement('div');
+    av.className = 'm-avatar';
+    av.textContent = role === 'user' ? '🧑' : '🌸';
+    const bub = document.createElement('div');
+    bub.className = 'bubble' + (isError ? ' error' : '');
+    bub.textContent = text;
+    wrap.append(av, bub);
+    chatEl.appendChild(wrap);
+    scrollBottom();
+    return bub;
+  }
+
+  function addTyping() {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.id = 'typingMsg';
+    wrap.innerHTML = '<div class="m-avatar">🌸</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+    chatEl.appendChild(wrap);
+    scrollBottom();
+  }
+
+  function removeTyping() {
+    document.getElementById('typingMsg')?.remove();
+  }
+
+  function addSessionPill() {
+    const pill = document.createElement('div');
+    pill.className = 'session-pill';
+    const count = session.messages.filter(v => v.role === 'user').length;
+    pill.textContent = `💬 Pesan ke-${count}/${MAX_MESSAGES_PER_SESSION} · Model: GPT-3.5`;
+    chatEl.appendChild(pill);
+    scrollBottom();
+  }
+
+  function addNotice(text) {
+    const pill = document.createElement('div');
+    pill.className = 'session-pill';
+    pill.textContent = text;
+    chatEl.appendChild(pill);
+    scrollBottom();
+  }
+
+  function renderEmpty() {
+    const div = document.createElement('div');
+    div.className = 'empty';
+    div.innerHTML = `
+      <div class="big">🌸</div>
+      <h2>Hai! Aku Aomi~</h2>
+      <p>Mau ngobrol apa hari ini?</p>
+      <div class="chips">
+        <span class="chip">Halo bro!</span>
+        <span class="chip">Apa kabar?</span>
+        <span class="chip">Ceritakan tentang AI</span>
+        <span class="chip">Buatkan puisi singkat</span>
+      </div>`;
+    chatEl.appendChild(div);
+    div.querySelectorAll('.chip').forEach(c =>
+      c.addEventListener('click', () => { input.value = c.textContent; input.focus(); })
+    );
+  }
+
+  function setBusy(v) {
+    busy = v;
+    sendBtn.disabled = v;
+    input.disabled = v;
+    statusDot.className = 'dot' + (v ? ' busy' : '');
+    statusText.textContent = v ? 'Aomi sedang berpikir...' : 'Online · GPT-3.5';
+  }
+
+  // ====== API ======
+  async function sendChat(userText) {
+    const messages = [
+      ...session.messages.map(v => ({ pluginId: null, content: String(v.content || ''), role: v.role })),
+      { pluginId: null, content: userText, fileList: [], role: 'user' }
+    ];
+
+    const body = {
+      model: MODEL,
+      messages,
+      prompt: SYSTEM_PROMPT,
+      temperature: 0.5,
+      enableConversationPrompt: false
+    };
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: buildHeaders(session.browserId),
+        body: JSON.stringify(body),
+        signal: ctrl.signal
+      });
+
+      const text = await res.text();
+
+      if (res.status >= 200 && res.status < 300) {
+        session.messages.push({ role: 'user', content: userText });
+        session.messages.push({ role: 'assistant', content: text });
+        saveSession(session);
+        addMsg('bot', text);
+        addSessionPill();
+
+        // kalau session penuh, buat baru utk pesan berikutnya
+        if (session.messages.filter(v => v.role === 'user').length >= MAX_MESSAGES_PER_SESSION) {
+          session = createSession();
+          saveSession(session);
+          addNotice('Sesi penuh, sesi baru otomatis dimulai 🔄');
+        }
+      } else {
+        addMsg('bot', `Gagal! Status: ${res.status}\n${text.slice(0, 200)}\n\nCoba lagi nanti ya~`, true);
+      }
+    } catch (err) {
+      const msg = err.name === 'AbortError'
+        ? 'Timeout 60 detik. Coba lagi ya~'
+        : `Error: ${err.message}\n\nCatatan: kalau ini CORS, buka file via server lokal (mis. Live Server) atau host file ini online.`;
+      addMsg('bot', msg, true);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // ====== EVENTS ======
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text || busy) return;
+
+    document.querySelector('.empty')?.remove();
+    input.value = '';
+    input.style.height = 'auto';
+
+    addMsg('user', text);
+    setBusy(true);
+    addTyping();
+
+    await sendChat(text);
+
+    removeTyping();
+    setBusy(false);
+    input.focus();
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', resetSession);
+
+  // init
+  renderEmpty();
+  if (session.messages.length) {
+    document.querySelector('.empty')?.remove();
+    for (const m of session.messages) addMsg(m.role, m.content);
+    addSessionPill();
+  }
+</script>
+</body>
+</html>
